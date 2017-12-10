@@ -3,11 +3,7 @@ var fs = require('fs'),
     nodeEval = require('node-eval'),
     config = require('./config'),
 
-    bundleName = 'index',
-    pathToBundle = path.resolve('bundles/desktop.bundles', bundleName),
-
     isDev = process.env.NODE_ENV === 'development',
-    templates = getTemplates(),
     useCache = !isDev,
     cacheTTL = config.cacheTTL,
     cache = {};
@@ -16,7 +12,8 @@ function render(req, res, data, context) {
     var query = req.query,
         user = req.user,
         cacheKey = req.originalUrl + (context ? JSON.stringify(context) : '') + (user ? JSON.stringify(user) : ''),
-        cached = cache[cacheKey];
+        cached = cache[cacheKey],
+        templates = getTemplates(data.page, data.bundle);
 
     if (useCache && cached && (new Date() - cached.timestamp < cacheTTL)) {
         return res.send(cached.html);
@@ -33,8 +30,6 @@ function render(req, res, data, context) {
             csrf: req.csrfToken()
         }, data)
     };
-
-    if (isDev) templates = getTemplates();
 
     try {
         var bemjson = templates.BEMTREE.apply(bemtreeCtx);
@@ -69,7 +64,10 @@ function evalFile(filename) {
     return nodeEval(fs.readFileSync(filename, 'utf8'), filename);
 }
 
-function getTemplates() {
+function getTemplates(bundleName = 'index', level = 'desktop') {
+
+    var pathToBundle = path.resolve('bundles/' + level + '.bundles', bundleName);
+
     return {
         BEMTREE: evalFile(path.join(pathToBundle, bundleName + '.bemtree.js')).BEMTREE,
         BEMHTML: evalFile(path.join(pathToBundle, bundleName + '.bemhtml.js')).BEMHTML
