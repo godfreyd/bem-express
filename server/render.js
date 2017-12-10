@@ -4,7 +4,7 @@ var fs = require('fs'),
     config = require('./config'),
 
     bundleName = 'index',
-    pathToBundle = path.resolve('desktop.bundles', bundleName),
+    pathToBundle = path.resolve('bundles/desktop.bundles', bundleName),
 
     isDev = process.env.NODE_ENV === 'development',
     templates = getTemplates(),

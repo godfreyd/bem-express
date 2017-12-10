@@ -65,9 +65,25 @@ app.get('/ping/', function(req, res) {
 app.get('/', function(req, res) {
     render(req, res, {
         view: 'page-index',
+        page: 'index',
         title: 'Main page',
         meta: {
             description: 'Page description',
+            og: {
+                url: 'https://site.com',
+                siteName: 'Site name'
+            }
+        }
+    })
+});
+
+app.get('/about', function(req, res) {
+    render(req, res, {
+        view: 'page-about',
+        page: 'about',
+        title: 'About page',
+        meta: {
+            description: 'About page description',
             og: {
                 url: 'https://site.com',
                 siteName: 'Site name'

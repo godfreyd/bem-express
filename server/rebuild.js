@@ -13,7 +13,7 @@ var fs = require('fs'),
     };
 
 // get bundles list
-var bundlesDir = path.join(rootDir, 'desktop.bundles');
+var bundlesDir = path.join(rootDir, 'bundles/desktop.bundles');
 var bundles = fs.readdirSync(bundlesDir).filter(function(file) {
     return fs.statSync(path.join(bundlesDir, file)).isDirectory();
 });
@@ -44,7 +44,7 @@ function rebuild(event, file) {
 var debouncedRebuild = _.debounce(rebuild, 30, { leading: true, trailing: true });
 
 process.env.NO_AUTOMAKE || watch([
-    path.join(rootDir, '*.blocks', '**'),
+    path.join(rootDir, 'blocks/*.blocks', '**'),
 ].concat(bundles.map(function(bundle) {
     return path.join(bundlesDir, bundle, bundle + '.bemdecl.js');
 })), watchOpts).on('all', debouncedRebuild);

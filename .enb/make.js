@@ -20,24 +20,24 @@ var techs = {
         bemhtml: require('enb-bemxjst/techs/bemhtml')
     },
     enbBemTechs = require('enb-bem-techs'),
-    levels = [
+    libLevels = [
         { path: 'node_modules/bem-core/common.blocks', check: false },
         { path: 'node_modules/bem-core/desktop.blocks', check: false },
         { path: 'node_modules/bem-components/common.blocks', check: false },
         { path: 'node_modules/bem-components/desktop.blocks', check: false },
         { path: 'node_modules/bem-components/design/common.blocks', check: false },
-        { path: 'node_modules/bem-components/design/desktop.blocks', check: false },
-        'common.blocks'
+        { path: 'node_modules/bem-components/design/desktop.blocks', check: false }
     ];
 
-var isProd = process.env.YENV === 'production';
-isProd || levels.push('development.blocks');
+function configNodes(config, bundle, levels) {
 
-module.exports = function(config) {
-    config.nodes('*.bundles/*', function(nodeConfig) {
+    var isProd = process.env.YENV === 'production';
+    isProd || levels.push('blocks/development.blocks');
+
+    config.nodes(bundle, function(nodeConfig) {
         nodeConfig.addTechs([
             // essential
-            [enbBemTechs.levels, { levels: levels }],
+            [enbBemTechs.levels, { levels: libLevels.concat(levels) }],
             [techs.fileProvider, { target: '?.bemdecl.js' }],
             [enbBemTechs.deps],
             [enbBemTechs.files],
@@ -92,10 +92,19 @@ module.exports = function(config) {
             [techs.borschik, { source: '?.js', target: '?.min.js', minify: isProd }],
             [techs.borschik, { source: '?.css', target: '?.min.css', minify: isProd }],
 
-            [techs.fileCopy, { source: '?.min.js', target: '../../static/?.min.js' }],
-            [techs.fileCopy, { source: '?.min.css', target: '../../static/?.min.css' }]
+            [techs.fileCopy, { source: '?.min.js', target: '../../../static/?.min.js' }],
+            [techs.fileCopy, { source: '?.min.css', target: '../../../static/?.min.css' }]
         ]);
 
-        nodeConfig.addTargets(['?.bemtree.js', '?.bemhtml.js', '../../static/?.min.js', '../../static/?.min.css']);
+        nodeConfig.addTargets(['?.bemtree.js', '?.bemhtml.js', '../../../static/?.min.js', '../../../static/?.min.css']);
     });
+
+}
+
+module.exports = function(config) {
+
+    configNodes(config, 'bundles/*.bundles/index', [ 'blocks/common.blocks', 'blocks/index.blocks' ]);
+
+    configNodes(config, 'bundles/*.bundles/about', [ 'blocks/common.blocks', 'blocks/about.blocks' ]);
+
 };
