@@ -98,7 +98,7 @@ exports.deps = [
         "mod": "view"
     },
     {
-        "block": "header"
+        "block": "i18n"
     },
     {
         "block": "logo"
@@ -171,6 +171,9 @@ exports.deps = [
         "block": "page",
         "mod": "view",
         "val": "404"
+    },
+    {
+        "block": "header"
     },
     {
         "block": "jquery",

@@ -66,6 +66,7 @@ app.get('/', function(req, res) {
     render(req, res, {
         view: 'page-index',
         page: 'index',
+        lang: 'en',
         bundle: 'desktop',
         title: 'Main page',
         meta: {
@@ -82,6 +83,7 @@ app.get('/about', function(req, res) {
     render(req, res, {
         view: 'page-about',
         page: 'about',
+        lang: 'en',
         bundle: 'desktop',
         title: 'About page',
         meta: {

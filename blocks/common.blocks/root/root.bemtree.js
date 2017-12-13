@@ -19,7 +19,7 @@ block('root').replace()(function() {
         scripts: [
             {
                 elem: 'js',
-                url: '/' + data.page + '.min.js'
+                url: '/' + data.page + '.' + data.lang + '.min.js'
             }
         ],
         head: [
