@@ -114,7 +114,7 @@ function configNodes(config, bundle, levels) {
             [techs.fileCopy, { source: '?.min.css', target: '../../../static/?.min.css' }]
         ]);
 
-        nodeConfig.addTargets(['?.bemtree.{lang}.js', '?.bemhtml.{lang}.js', '../../../static/?.{lang}.min.js', '../../../static/?.min.css']);
+        nodeConfig.addTargets(['?.{lang}.bemtree.js', '?.{lang}.bemhtml.js', '../../../static/?.{lang}.min.js', '../../../static/?.min.css']);
     });
 
 }
