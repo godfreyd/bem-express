@@ -1,4 +1,5 @@
-var techs = {
+var langs = ['ru', 'en'],
+    techs = {
         fileProvider: require('enb/techs/file-provider'),
         fileMerge: require('enb/techs/file-merge'),
         fileCopy: require('enb/techs/file-copy'),
@@ -16,8 +17,10 @@ var techs = {
             require('autoprefixer')()
         ],
         browserJs: require('enb-js/techs/browser-js'),
-        bemtree: require('enb-bemxjst/techs/bemtree'),
-        bemhtml: require('enb-bemxjst/techs/bemhtml')
+        keysets: require('enb-bem-i18n/techs/keysets'),
+        i18n: require('enb-bem-i18n/techs/i18n'),
+        bemtree: require('enb-bemxjst-i18n/techs/bemtree-i18n'),
+        bemhtml: require('enb-bemxjst-i18n/techs/bemhtml-i18n')
     },
     enbBemTechs = require('enb-bem-techs'),
     libLevels = [
@@ -49,14 +52,26 @@ function configNodes(config, bundle, levels) {
                 plugins: techs.postcssPlugins
             }],
 
+            // i18n
+            [techs.keysets, { lang: '{lang}' }],
+            [techs.i18n, {
+                exports: { ym: true, commonJS: true },
+                lang: '{lang}'
+            }],
+
             // bemtree
-            [techs.bemtree, { sourceSuffixes: ['bemtree', 'bemtree.js'] }],
+            [techs.bemtree, { sourceSuffixes: ['bemtree', 'bemtree.js'],
+            target: '?.bemtree.{lang}.js',
+            lang: '{lang}'
+            }],
 
             // templates
             [techs.bemhtml, {
                 sourceSuffixes: ['bemhtml', 'bemhtml.js'],
                 forceBaseTemplates: true,
-                engineOptions: { elemJsInstances: true }
+                engineOptions: { elemJsInstances: true },
+                target: '?.bemhtml.{lang}.js',
+                lang: '{lang}'
             }],
 
             // client templates
@@ -75,7 +90,8 @@ function configNodes(config, bundle, levels) {
                 dirsTarget: '?.tmpl.dirs'
             }],
             [techs.bemhtml, {
-                target: '?.browser.bemhtml.js',
+                lang: '{lang}',
+                target: '?.browser.{lang}.bemhtml.js',
                 filesTarget: '?.tmpl.files',
                 sourceSuffixes: ['bemhtml', 'bemhtml.js'],
                 engineOptions: { elemJsInstances: true }
@@ -84,24 +100,28 @@ function configNodes(config, bundle, levels) {
             // js
             [techs.browserJs, { includeYM: true }],
             [techs.fileMerge, {
-                target: '?.js',
-                sources: ['?.browser.js', '?.browser.bemhtml.js']
+                target: '?.{lang}.js',
+                sources: ['?.browser.js',
+                '?.lang.{lang}.js', '?.browser.{lang}.bemhtml.js'],
+                lang: '{lang}'
             }],
 
             // borschik
-            [techs.borschik, { source: '?.js', target: '?.min.js', minify: isProd }],
+            [techs.borschik, { source: '?.{lang}.js', target: '?.{lang}.min.js', minify: isProd }],
             [techs.borschik, { source: '?.css', target: '?.min.css', minify: isProd }],
 
-            [techs.fileCopy, { source: '?.min.js', target: '../../../static/?.min.js' }],
+            [techs.fileCopy, { source: '?.{lang}.min.js', target: '../../../static/?.{lang}.min.js' }],
             [techs.fileCopy, { source: '?.min.css', target: '../../../static/?.min.css' }]
         ]);
 
-        nodeConfig.addTargets(['?.bemtree.js', '?.bemhtml.js', '../../../static/?.min.js', '../../../static/?.min.css']);
+        nodeConfig.addTargets(['?.bemtree.{lang}.js', '?.bemhtml.{lang}.js', '../../../static/?.{lang}.min.js', '../../../static/?.min.css']);
     });
 
 }
 
 module.exports = function(config) {
+
+    config.setLanguages(langs);
 
     configNodes(config, 'bundles/*.bundles/index', [ 'blocks/common.blocks', 'blocks/index.blocks' ]);
 
