@@ -61,7 +61,7 @@ function configNodes(config, bundle, levels) {
 
             // bemtree
             [techs.bemtree, { sourceSuffixes: ['bemtree', 'bemtree.js'],
-            target: '?.bemtree.{lang}.js',
+            target: '?.{lang}.bemtree.js',
             lang: '{lang}'
             }],
 
@@ -70,7 +70,7 @@ function configNodes(config, bundle, levels) {
                 sourceSuffixes: ['bemhtml', 'bemhtml.js'],
                 forceBaseTemplates: true,
                 engineOptions: { elemJsInstances: true },
-                target: '?.bemhtml.{lang}.js',
+                target: '?.{lang}.bemhtml.js',
                 lang: '{lang}'
             }],
 
