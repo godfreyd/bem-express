@@ -139,6 +139,132 @@ exports.deps = [
         "block": "control"
     },
     {
+        "block": "lang-switcher"
+    },
+    {
+        "block": "select"
+    },
+    {
+        "block": "select",
+        "mod": "focused"
+    },
+    {
+        "block": "select",
+        "elem": "control"
+    },
+    {
+        "block": "select",
+        "elem": "button"
+    },
+    {
+        "block": "button"
+    },
+    {
+        "block": "button",
+        "mod": "focused"
+    },
+    {
+        "block": "button",
+        "mod": "hovered"
+    },
+    {
+        "block": "button",
+        "mod": "disabled"
+    },
+    {
+        "block": "button",
+        "mod": "pressed"
+    },
+    {
+        "block": "button",
+        "elem": "text"
+    },
+    {
+        "block": "icon"
+    },
+    {
+        "block": "select",
+        "elem": "menu"
+    },
+    {
+        "block": "menu"
+    },
+    {
+        "block": "menu",
+        "mod": "focused"
+    },
+    {
+        "block": "menu",
+        "elem": "item"
+    },
+    {
+        "block": "menu",
+        "elem": "group"
+    },
+    {
+        "block": "menu",
+        "elem": "group-title"
+    },
+    {
+        "block": "popup"
+    },
+    {
+        "block": "functions",
+        "elem": "throttle"
+    },
+    {
+        "block": "popup",
+        "mod": "visible"
+    },
+    {
+        "block": "popup",
+        "mod": "autoclosable"
+    },
+    {
+        "block": "popup",
+        "mod": "target"
+    },
+    {
+        "block": "z-index-group"
+    },
+    {
+        "block": "strings",
+        "elem": "escape"
+    },
+    {
+        "block": "select",
+        "mod": "mode"
+    },
+    {
+        "block": "menu",
+        "mod": "mode"
+    },
+    {
+        "block": "select",
+        "mod": "theme"
+    },
+    {
+        "block": "button",
+        "mod": "theme"
+    },
+    {
+        "block": "popup",
+        "mod": "theme"
+    },
+    {
+        "block": "menu",
+        "mod": "theme"
+    },
+    {
+        "block": "menu",
+        "elem": "item",
+        "mod": "theme"
+    },
+    {
+        "block": "select",
+        "mod": "size"
+    },
+    {
         "block": "body"
     },
     {
@@ -186,5 +312,91 @@ exports.deps = [
         "elem": "event",
         "mod": "type",
         "val": "pointerpressrelease"
+    },
+    {
+        "block": "select",
+        "mod": "mode",
+        "val": "radio-check"
+    },
+    {
+        "block": "select",
+        "mod": "focused",
+        "val": true
+    },
+    {
+        "block": "button",
+        "mod": "focused",
+        "val": true
+    },
+    {
+        "block": "button",
+        "mod": "hovered",
+        "val": true
+    },
+    {
+        "block": "button",
+        "mod": "disabled",
+        "val": true
+    },
+    {
+        "block": "button",
+        "mod": "pressed",
+        "val": true
+    },
+    {
+        "block": "menu",
+        "mod": "focused",
+        "val": true
+    },
+    {
+        "block": "popup",
+        "mod": "autoclosable",
+        "val": true
+    },
+    {
+        "block": "popup",
+        "mod": "visible",
+        "val": true
+    },
+    {
+        "block": "popup",
+        "mod": "target",
+        "val": "anchor"
+    },
+    {
+        "block": "menu",
+        "mod": "mode",
+        "val": "radio-check"
+    },
+    {
+        "block": "button",
+        "mod": "theme",
+        "val": "islands"
+    },
+    {
+        "block": "popup",
+        "mod": "theme",
+        "val": "islands"
+    },
+    {
+        "block": "menu",
+        "mod": "theme",
+        "val": "islands"
+    },
+    {
+        "block": "menu",
+        "elem": "item",
+        "mod": "theme",
+        "val": "islands"
+    },
+    {
+        "block": "select",
+        "mod": "size",
+        "val": "m"
+    },
+    {
+        "block": "select",
+        "mod": "theme",
+        "val": "islands"
     }
 ];

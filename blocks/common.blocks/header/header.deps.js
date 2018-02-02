@@ -1,4 +1,4 @@
 ({
     mustDeps: 'i18n',
-    shouldDeps: ['logo']
+    shouldDeps: ['logo', 'lang-switcher']
 })

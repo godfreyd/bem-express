@@ -83,7 +83,7 @@ app.get('/about', function(req, res) {
     render(req, res, {
         view: 'page-about',
         page: 'about',
-        lang: 'en',
+        lang: 'ru',
         bundle: 'desktop',
         title: 'About page',
         meta: {

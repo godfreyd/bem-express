@@ -17,6 +17,7 @@ var langs = ['ru', 'en'],
             require('autoprefixer')()
         ],
         browserJs: require('enb-js/techs/browser-js'),
+        prependYm: require('enb-modules/techs/prepend-modules'),
         keysets: require('enb-bem-i18n/techs/keysets'),
         i18n: require('enb-bem-i18n/techs/i18n'),
         bemtree: require('enb-bemxjst-i18n/techs/bemtree-i18n'),
@@ -100,10 +101,15 @@ function configNodes(config, bundle, levels) {
             // js
             [techs.browserJs, { includeYM: true }],
             [techs.fileMerge, {
-                target: '?.{lang}.js',
+                target: '?.pre.{lang}.js',
                 sources: ['?.browser.js',
                 '?.lang.{lang}.js', '?.browser.{lang}.bemhtml.js'],
                 lang: '{lang}'
+            }],
+
+            [techs.prependYm, {
+                source: '?.pre.{lang}.js',
+                target: '?.{lang}.js'
             }],
 
             // borschik

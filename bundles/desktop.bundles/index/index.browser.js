@@ -5348,6 +5348,1619 @@ provide(bemDom.declBlock(Control, {
 });
 
 /* end: ../../../node_modules/bem-components/desktop.blocks/control/control.js */
+/* begin: ../../../blocks/common.blocks/lang-switcher/lang-switcher.js */
+// modules.define('lang-switcher', ['i-bem-dom', 'popup', 'menu', 'menu__item'],
+//     function(provide, bemDom, Popup, Menu, MenuItem) {
+
+//     provide(bemDom.declBlock(this.name, {
+//         onSetMod: {
+//             js: {
+//                 inited: function() {
+//                     // this.popup = this.findChildBlock(Popup);
+//                     // this.menu = this.findChildBlock(Menu);
+
+//                     // console.log(this.popup);
+
+//                     console.log('Я заинитился')
+
+//                 }
+//             }
+//         },
+//         _onMenuItemClick: function(e, data) {
+//             // var val = e.bemTarget.getVal();
+//             console.log('Клик по menu__item')
+
+//             // val && this._form.findChildBlock(Input).setVal(val);
+//         }
+//     }, {
+//         lazyInit: true,
+//         onInit: function() {
+
+
+//         console.log('lazyInit');
+
+//         this._events(Menu).on('change', this._onMenuItemClick, this);
+
+
+//         }
+//     }));
+
+// });
+
+
+/* end: ../../../blocks/common.blocks/lang-switcher/lang-switcher.js */
+/* begin: ../../../node_modules/bem-components/common.blocks/select/select.js */
+/**
+ * @module select
+ */
+
+modules.define(
+    'select',
+    ['i-bem-dom', 'popup', 'menu', 'menu__item', 'button', 'jquery', 'dom', 'keyboard__codes', 'strings__escape'],
+    function(provide, bemDom, Popup, Menu, MenuItem, Button, $, dom, keyCodes, escape) {
+
+/**
+ * @exports
+ * @class select
+ * @bem
+ *
+ * @bemmod opened Represents opened state
+ */
+provide(bemDom.declBlock(this.name, /** @lends select.prototype */{
+    beforeSetMod : {
+        'opened' : {
+            'true' : function() {
+                return !this.hasMod('disabled');
+            }
+        },
+
+        'focused' : {
+            '' : function() {
+                return !this._isPointerPressInProgress;
+            }
+        }
+    },
+
+    onSetMod : {
+        'js' : {
+            'inited' : function() {
+                this._button = this.findChildBlock(Button);
+                this._events(Button).on('click', this._onButtonClick, this);
+
+                this._popup = this.findChildBlock(Popup)
+                    .setAnchor(this._button);
+                this._events(Popup).on({ modName : 'visible', modVal : '' }, this._onPopupHide, this);
+
+                this._menu = this._popup.findChildBlock(Menu);
+                this._events(this._menu)
+                    .on('change', this._onMenuChange, this)
+                    .on('item-click', this._onMenuItemClick, this)
+                    .on('item-hover', this._onMenuItemHover, this);
+
+                this._isPointerPressInProgress = false;
+                this._buttonWidth = null;
+
+                this.hasMod('focused') && this._focus();
+            }
+        },
+
+        'focused' : {
+            'true' : function() {
+                this._focus();
+            },
+
+            '' : function() {
+                this._blur();
+            }
+        },
+
+        'opened' : {
+            '*' : function(_, modVal) {
+                this._menu.setMod('focused', modVal);
+            },
+
+            'true' : function() {
+                this._buttonWidth === null && this._updateMenuWidth();
+
+                this._updateMenuHeight();
+                this._popup.setMod('visible');
+                this._domEvents(bemDom.doc).on('pointerpress', this._onDocPointerPress);
+                this.setMod('focused')
+                    ._hoverCheckedOrFirstItem();
+            },
+
+            '' : function() {
+                this._domEvents(bemDom.doc).un('pointerpress', this._onDocPointerPress);
+                this._popup.delMod('visible');
+            }
+        },
+
+        'disabled' : {
+            '*' : function(modName, modVal) {
+                this._button.setMod(modName, modVal);
+                this._menu.setMod(modName, modVal);
+            },
+
+            'true' : function() {
+                this._elems('control').forEach(function(control) {
+                    control.domElem.attr('disabled', true);
+                });
+                this._popup.delMod('visible');
+            },
+
+            '' : function() {
+                this._elems('control').forEach(function(control) {
+                    control.domElem.removeAttr('disabled');
+                });
+            }
+        }
+    },
+
+    /**
+     * Get value
+     * @returns {*}
+     */
+    getVal : function() {
+        return this._menu.getVal();
+    },
+
+    /**
+     * Set value
+     * @param {*} val
+     * @returns {select} this
+     */
+    setVal : function(val) {
+        this._menu.setVal(val);
+        return this;
+    },
+
+    /**
+     * Get name
+     * @returns {String}
+     */
+    getName : function() {
+        return this.params.name;
+    },
+
+    _getDefaultParams : function() {
+        return {
+            optionsMaxHeight : Number.POSITIVE_INFINITY
+        };
+    },
+
+    _focus : function() {
+        this._domEvents('button')
+            .on('keydown', this._onKeyDown)
+            .on('keypress', this._onKeyPress);
+
+        this._button.setMod('focused');
+    },
+
+    _blur : function() {
+        this._domEvents('button')
+            .un('keydown', this._onKeyDown)
+            .un('keypress', this._onKeyPress);
+
+        this.delMod('opened');
+        this._button.delMod('focused');
+    },
+
+    _updateMenuWidth : function() {
+        this._menu.domElem.css('min-width', this._buttonWidth = this._button.domElem.outerWidth());
+
+        this._popup.redraw();
+    },
+
+    _updateMenuHeight : function() {
+        var drawingParams = this._popup.calcPossibleDrawingParams(),
+            menuDomElem = this._menu.domElem,
+            menuWidth = menuDomElem.outerWidth(),
+            bestHeight = 0;
+
+        drawingParams.forEach(function(params) {
+            params.width >= menuWidth && params.height > bestHeight && (bestHeight = params.height);
+        });
+
+        bestHeight && menuDomElem.css('max-height', Math.min(this.params.optionsMaxHeight, bestHeight));
+    },
+
+    _getCheckedItems : function() {
+        return this._menu.getItems().filter(function(item) {
+            return item.hasMod('checked');
+        });
+    },
+
+    _hoverCheckedOrFirstItem : function() { // NOTE: may be it should be moved to menu
+        (this._getCheckedItems().get(0) || this._menu.getItems().get(0))
+            .setMod('hovered');
+    },
+
+    _onKeyDown : function(e) {
+        if(this.hasMod('opened')) {
+            if(e.keyCode === keyCodes.ESC) {
+                // NOTE: stop propagation to prevent from being listened by global handlers
+                e.stopPropagation();
+                this.delMod('opened');
+            }
+        } else if((e.keyCode === keyCodes.UP || e.keyCode === keyCodes.DOWN) && !e.shiftKey) {
+            e.preventDefault();
+            this.setMod('opened');
+        }
+    },
+
+    _onKeyPress : function(e) {
+        // press a key: closed select - set value, opened select - set hover on menu-item.
+        if(!this.hasMod('opened')) {
+            var item = this._menu.searchItemByKeyboardEvent(e);
+            item && this._setSingleVal(item.getVal());
+        }
+    },
+
+    _setSingleVal : function(value) {
+        this.setVal(value);
+    },
+
+    _onMenuChange : function() {
+        this._updateControl();
+        this._updateButton();
+
+        this.hasMod('opened')?
+            this._updateMenuWidth() :
+            this._buttonWidth = null;
+
+        this._emit('change');
+    },
+
+    _onMenuItemClick : function() {},
+
+    _onMenuItemHover : function(e, data) {
+        var item = data.item;
+        item.hasMod('hovered')?
+            this._button.domElem.attr('aria-activedescendant', item.domElem.attr('id')) :
+            this._button.domElem.removeAttr('aria-activedescendant');
+    },
+
+    _updateControl : function() {},
+
+    _updateButton : function() {},
+
+    _onButtonClick : function() {
+        this.toggleMod('opened');
+    },
+
+    _onButtonFocusChange : function(e, data) {
+        this.setMod('focused', data.modVal);
+    },
+
+    _onPopupHide : function() {
+        this.delMod('opened');
+    },
+
+    _onDocPointerPress : function(e) {
+        if(this._isEventInPopup(e)) {
+            e.pointerType === 'mouse' && e.preventDefault(); // prevents button blur in most desktop browsers
+            this._isPointerPressInProgress = true;
+            this._domEvents(bemDom.doc).on(
+                'pointerrelease',
+                { focusedHardMod : this._button.getMod('focused-hard') },
+                this._onDocPointerRelease);
+        }
+    },
+
+    _onDocPointerRelease : function(e) {
+        this._isPointerPressInProgress = false;
+        this._domEvents().un('pointerrelease', this._onDocPointerRelease);
+        this._button
+            .toggleMod('focused', true, '', this._isEventInPopup(e))
+            .setMod('focused-hard', e.data.focusedHardMod);
+    },
+
+    _isEventInPopup : function(e) {
+        return dom.contains(this._popup.domElem, $(e.target));
+    }
+}, /** @lends select */{
+    lazyInit : true,
+    onInit : function() {
+        this._events(Button).on(
+            { modName : 'focused', modVal : '*' },
+            this.prototype._onButtonFocusChange);
+    },
+
+    _createControlHTML : function(name, val) {
+        // Using string concatenation to not depend on template engines
+        return '<input ' +
+            'type="hidden" ' +
+            'name="' + name + '" ' +
+            'class="' + this._buildClassName('control') + '" ' +
+            'value="' + escape.attr(val) + '"/>';
+    }
+}));
+
+});
+
+/* end: ../../../node_modules/bem-components/common.blocks/select/select.js */
+/* begin: ../../../node_modules/bem-components/common.blocks/button/button.js */
+/**
+ * @module button
+ */
+
+modules.define(
+    'button',
+    ['i-bem-dom', 'control', 'jquery', 'dom', 'functions', 'keyboard__codes'],
+    function(provide, bemDom, Control, $, dom, functions, keyCodes) {
+
+/**
+ * @exports
+ * @class button
+ * @augments control
+ * @bem
+ */
+provide(bemDom.declBlock(this.name, Control, /** @lends button.prototype */{
+    beforeSetMod : {
+        'pressed' : {
+            'true' : function() {
+                return !this.hasMod('disabled') || this.hasMod('togglable');
+            }
+        },
+
+        'focused' : {
+            '' : function() {
+                return !this._isPointerPressInProgress;
+            }
+        }
+    },
+
+    onSetMod : {
+        'js' : {
+            'inited' : function() {
+                this.__base.apply(this, arguments);
+                this._isPointerPressInProgress = false;
+                this._focusedByPointer = false;
+            }
+        },
+
+        'disabled' : {
+            'true' : function() {
+                this.__base.apply(this, arguments);
+                this.hasMod('togglable') || this.delMod('pressed');
+                this.domElem.attr('aria-disabled', true);
+            },
+            '' : function() {
+                this.__base.apply(this, arguments);
+                this.domElem.removeAttr('aria-disabled');
+            }
+        },
+
+        'focused' : {
+            'true' : function() {
+                this.__base.apply(this, arguments);
+                this._focusedByPointer || this.setMod('focused-hard');
+            },
+
+            '' : function() {
+                this.__base.apply(this, arguments);
+                this.delMod('focused-hard');
+            }
+        }
+    },
+
+    /**
+     * Returns text of the button
+     * @returns {String}
+     */
+    getText : function() {
+        return this._elem('text').domElem.text();
+    },
+
+    /**
+     * Sets text to the button
+     * @param {String} text
+     * @returns {button} this
+     */
+    setText : function(text) {
+        this._elem('text').domElem.text(text || '');
+        return this;
+    },
+
+    _onFocus : function() {
+        if(this._isPointerPressInProgress) return;
+
+        this.__base.apply(this, arguments);
+        this._domEvents('control').on('keydown', this._onKeyDown);
+    },
+
+    _onBlur : function() {
+        this._domEvents('control').un('keydown', this._onKeyDown);
+        this.__base.apply(this, arguments);
+    },
+
+    _onMouseDown : function(e) {
+        e.preventDefault(); // NOTE: prevents button from being blurred at least in FF and Safari
+        this._domEvents().un('mousedown', this._onMouseDown);
+    },
+
+    _onPointerPress : function() {
+        this._domEvents().on('mousedown', this._onMouseDown);
+        if(!this.hasMod('disabled')) {
+            this._isPointerPressInProgress = true;
+            this._domEvents(bemDom.doc).on('pointerrelease', this._onPointerRelease);
+            this.setMod('pressed');
+        }
+    },
+
+    _onPointerRelease : function(e) {
+        this._isPointerPressInProgress = false;
+        this._domEvents(bemDom.doc).un('pointerrelease', this._onPointerRelease);
+
+        if(e.originalEvent.type === 'pointerup' && dom.contains(this.findMixedElem('control').domElem, $(e.target))) {
+            this._focusedByPointer = true;
+            this._focus();
+            this._focusedByPointer = false;
+            this._domEvents().once('pointerclick', this._onPointerClick);
+        } else {
+            this._blur();
+        }
+
+        this.delMod('pressed');
+    },
+
+    _onPointerClick : function() {
+        this
+            ._updateChecked()
+            ._emit('click');
+    },
+
+    _onKeyDown : function(e) {
+        if(this.hasMod('disabled')) return;
+
+        var keyCode = e.keyCode;
+        if(keyCode === keyCodes.SPACE || keyCode === keyCodes.ENTER) {
+            this._domEvents('control')
+                .un('keydown', this._onKeyDown)
+                .on('keyup', this._onKeyUp);
+
+            this._updateChecked()
+                .setMod('pressed');
+        }
+    },
+
+    _onKeyUp : function(e) {
+        this._domEvents('control')
+            .un('keyup', this._onKeyUp)
+            .on('keydown', this._onKeyDown);
+
+        this.delMod('pressed');
+
+        e.keyCode === keyCodes.SPACE && this._doAction();
+
+        this._emit('click');
+    },
+
+    _updateChecked : function() {
+        this.hasMod('togglable') &&
+            (this.hasMod('togglable', 'check')?
+                this.toggleMod('checked') :
+                this.setMod('checked'));
+
+        return this;
+    },
+
+    _doAction : functions.noop
+}, /** @lends button */{
+    lazyInit : true,
+    onInit : function() {
+        this._domEvents('control').on('pointerpress', this.prototype._onPointerPress);
+        return this.__base.apply(this, arguments);
+    }
+}));
+
+});
+
+/* end: ../../../node_modules/bem-components/common.blocks/button/button.js */
+/* begin: ../../../node_modules/bem-components/common.blocks/menu/menu.js */
+/**
+ * @module menu
+ */
+
+modules.define(
+    'menu',
+    ['i-bem-dom', 'control', 'keyboard__codes', 'menu__item'],
+    function(provide, bemDom, Control, keyCodes, MenuItem) {
+
+/** @const Number */
+var TIMEOUT_KEYBOARD_SEARCH = 1500;
+
+/**
+ * @exports
+ * @class menu
+ * @augments control
+ * @bem
+ */
+provide(bemDom.declBlock(this.name, Control, /** @lends menu.prototype */{
+    onSetMod : {
+        'js' : {
+            'inited' : function() {
+                this.__base.apply(this, arguments);
+                this._hoveredItem = null;
+                this._items = null;
+
+                this._lastTyping = {
+                    char : '',
+                    text : '',
+                    index : 0,
+                    time : 0
+                };
+            }
+        },
+
+        'disabled' : {
+            '*' : function(modName, modVal) {
+                this.__base.apply(this, arguments);
+                this.getItems().setMod(modName, modVal);
+            },
+            'true' : function() {
+                this.__base.apply(this, arguments);
+                this.domElem.attr('aria-disabled', true);
+            },
+            '' : function() {
+                this.__base.apply(this, arguments);
+                this.domElem.removeAttr('aria-disabled');
+            }
+        }
+    },
+
+    /**
+     * Returns items
+     * @returns {menu__item[]}
+     */
+    getItems : function() {
+        return this._items || (this._items = this.findChildElems('item'));
+    },
+
+    /**
+     * Sets content
+     * @param {String|jQuery} content
+     * @returns {menu} this
+     */
+    setContent : function(content) {
+        bemDom.update(this.domElem, content);
+        this._hoveredItem = null;
+        this._items = null;
+        return this;
+    },
+
+    /**
+     * Search menu item by keyboard event
+     * @param {jQuery.Event} e
+     * @returns {menu__item}
+     */
+    searchItemByKeyboardEvent : function(e) {
+        var currentTime = +new Date(),
+            charCode = e.charCode,
+            char = String.fromCharCode(charCode).toLowerCase(),
+            lastTyping = this._lastTyping,
+            index = lastTyping.index,
+            isSameChar = char === lastTyping.char && lastTyping.text.length === 1,
+            items = this.getItems();
+
+        if(charCode <= keyCodes.SPACE || e.ctrlKey || e.altKey || e.metaKey) {
+            lastTyping.time = currentTime;
+            return null;
+        }
+
+        if(currentTime - lastTyping.time > TIMEOUT_KEYBOARD_SEARCH || isSameChar) {
+            lastTyping.text = char;
+        } else {
+            lastTyping.text += char;
+        }
+
+        lastTyping.char = char;
+        lastTyping.time = currentTime;
+
+        // If key is pressed again, then continue to search to next menu item
+        if(isSameChar && items.get(index).getText().search(lastTyping.char) === 0) {
+            index = index >= items.size() - 1? 0 : index + 1;
+        }
+
+        // 2 passes: from index to items.size() and from 0 to index.
+        var i = index, len = items.size();
+        while(i < len) {
+            if(this._doesItemMatchText(items.get(i), lastTyping.text)) {
+                lastTyping.index = i;
+                return items.get(i);
+            }
+
+            i++;
+
+            if(i === items.size()) {
+                i = 0;
+                len = index;
+            }
+        }
+
+        return null;
+    },
+
+    /** @override **/
+    _onFocus : function() {
+        this.__base.apply(this, arguments);
+        this._domEvents(bemDom.doc) // NOTE: should be called after __base
+            .on('keydown', this._onKeyDown)
+            .on('keypress', this._onKeyPress);
+    },
+
+    /** @override **/
+    _onBlur : function() {
+        this._domEvents(bemDom.doc)
+            .un('keydown', this._onKeyDown)
+            .un('keypress', this._onKeyPress);
+
+        this.__base.apply(this, arguments);
+        this._hoveredItem && this._hoveredItem.delMod('hovered');
+    },
+
+    /**
+     * @param {Object} item
+     * @private
+     */
+    _onItemHover : function(item) {
+        if(item.hasMod('hovered')) {
+            this._hoveredItem && this._hoveredItem.delMod('hovered');
+            this._scrollToItem(this._hoveredItem = item);
+            this.domElem.attr('aria-activedescendant', item.domElem.attr('id'));
+        } else if(this._hoveredItem === item) {
+            this._hoveredItem = null;
+            this.domElem.removeAttr('aria-activedescendant');
+        }
+        this._emit('item-hover', { item : item });
+    },
+
+    /**
+     * @param {Object} item
+     * @private
+     */
+    _scrollToItem : function(item) {
+        var domElemOffsetTop = this.domElem.offset().top,
+            itemDomElemOffsetTop = item.domElem.offset().top,
+            relativeScroll;
+
+        if((relativeScroll = itemDomElemOffsetTop - domElemOffsetTop) < 0 ||
+            (relativeScroll =
+                itemDomElemOffsetTop +
+                item.domElem.outerHeight() -
+                domElemOffsetTop -
+                this.domElem.outerHeight()) > 0) {
+            this.domElem.scrollTop(this.domElem.scrollTop() + relativeScroll);
+        }
+    },
+
+    /**
+     * @param {Object} item
+     * @param {Object} data
+     * @private
+     */
+    _onItemClick : function(item, data) {
+        this._emit('item-click', { item : item, source : data.source });
+    },
+
+    /**
+     * @param {jQuery.Event} e
+     * @private
+     */
+    _onKeyDown : function(e) {
+        var keyCode = e.keyCode,
+            isArrow = keyCode === keyCodes.UP || keyCode === keyCodes.DOWN;
+
+        if(isArrow && !e.shiftKey) {
+            e.preventDefault();
+
+            var dir = keyCode - 39, // using the features of key codes for "up"/"down" ;-)
+                items = this.getItems(),
+                len = items.size(),
+                hoveredIdx = items.toArray().indexOf(this._hoveredItem),
+                nextIdx = hoveredIdx,
+                i = 0;
+
+            do {
+                nextIdx += dir;
+                nextIdx = nextIdx < 0? len - 1 : nextIdx >= len? 0 : nextIdx;
+                if(++i === len) return; // if we have no next item to hover
+            } while(items.get(nextIdx).hasMod('disabled'));
+
+            this._lastTyping.index = nextIdx;
+
+            items.get(nextIdx).setMod('hovered');
+        }
+    },
+
+    /**
+     * @param {jQuery.Event} e
+     * @private
+     */
+    _onKeyPress : function(e) {
+        var item = this.searchItemByKeyboardEvent(e);
+        item && item.setMod('hovered');
+    },
+
+    /**
+     * @param {Object} item
+     * @param {String} text
+     * @private
+     */
+    _doesItemMatchText : function(item, text) {
+        return !item.hasMod('disabled') &&
+            item.getText().toLowerCase().search(text) === 0;
+    }
+}, /** @lends menu */{
+    lazyInit : true,
+    onInit : function() {
+        this._events(MenuItem)
+            .on({ modName : 'hovered', modVal : '*' }, function(e) {
+                this._onItemHover(e.target);
+            })
+            .on('click', function(e, data) {
+                this._onItemClick(e.target, data);
+            });
+
+        return this.__base.apply(this, arguments);
+    }
+}));
+
+});
+
+/* end: ../../../node_modules/bem-components/common.blocks/menu/menu.js */
+/* begin: ../../../node_modules/bem-components/common.blocks/menu/__item/menu__item.js */
+/**
+ * @module menu__item
+ */
+
+modules.define('menu__item', ['i-bem-dom'], function(provide, bemDom) {
+
+/**
+ * @exports
+ * @class menu__item
+ * @bem
+ *
+ * @param val Value of item
+ */
+provide(bemDom.declElem('menu', 'item', /** @lends menu__item.prototype */{
+    beforeSetMod : {
+        'hovered' : {
+            'true' : function() {
+                return !this.hasMod('disabled');
+            }
+        }
+    },
+
+    onSetMod : {
+        'js' : {
+            'inited' : function() {
+                this._domEvents().on('pointerleave', this._onPointerLeave);
+            }
+        },
+
+        'disabled' : {
+            'true' : function() {
+                this
+                    .delMod('hovered')
+                    .domElem.attr('aria-disabled', true);
+            },
+            '' : function() {
+                this.domElem.removeAttr('aria-disabled');
+            }
+        },
+
+        'checked' : {
+            '*' : function(_, modVal) {
+                this.domElem.attr('aria-checked', !!modVal);
+            }
+        }
+    },
+
+    /**
+     * Checks whether given value is equal to current value
+     * @param {String|Number} val
+     * @returns {Boolean}
+     */
+    isValEq : function(val) {
+        // NOTE: String(true) == String(1) -> false
+        return String(this.params.val) === String(val);
+    },
+
+    /**
+     * Returns item value
+     * @returns {*}
+     */
+    getVal : function() {
+        return this.params.val;
+    },
+
+    /**
+     * Returns item text
+     * @returns {String}
+     */
+    getText : function() {
+        return this.params.text || this.domElem.text();
+    },
+
+    _onPointerOver : function() {
+        this.setMod('hovered');
+    },
+
+    _onPointerLeave : function() {
+        this.delMod('hovered');
+    },
+
+    _onPointerClick : function() {
+        this.hasMod('disabled') || this._emit('click', { source : 'pointer' });
+    }
+}, /** @lends menu__item */{
+    lazyInit : true,
+    onInit : function() {
+        var ptp = this.prototype;
+
+        this._domEvents()
+            .on('pointerover', ptp._onPointerOver)
+            .on('pointerclick', ptp._onPointerClick);
+    }
+}));
+
+});
+
+/* end: ../../../node_modules/bem-components/common.blocks/menu/__item/menu__item.js */
+/* begin: ../../../node_modules/bem-components/common.blocks/popup/popup.js */
+/**
+ * @module popup
+ */
+
+modules.define(
+    'popup',
+    ['i-bem-dom'],
+    function(provide, bemDom) {
+
+var ZINDEX_FACTOR = 1000,
+    visiblePopupsZIndexes = {},
+    undef;
+
+/**
+ * @exports
+ * @class popup
+ * @bem
+ *
+ * @param {Number} [zIndexGroupLevel=0] z-index group level
+ *
+ * @bemmod visible Represents visible state
+ */
+provide(bemDom.declBlock(this.name, /** @lends popup.prototype */{
+    onSetMod : {
+        'js' : {
+            'inited' : function() {
+                this._parentPopup = undef;
+                this._zIndex = null;
+                this._zIndexGroupLevel = null;
+                this._isAttachedToScope = false;
+            },
+
+            '' : function() {
+                this.delMod('visible');
+            }
+        },
+
+        'visible' : {
+            'true' : function() {
+                if(!this._isAttachedToScope) {
+                    bemDom.scope.append(this.domElem);
+                    this._isAttachedToScope = true;
+                }
+
+                this
+                    ._captureZIndex()
+                    ._bindToParentPopup()
+                    ._domEvents().on('pointerpress pointerclick', this._setPreventHideByClick);
+
+                this.domElem.removeAttr('aria-hidden');
+            },
+
+            '' : function() {
+                this
+                    ._releaseZIndex()
+                    ._unbindFromParentPopup()
+                    ._domEvents().un('pointerpress pointerclick', this._setPreventHideByClick);
+
+                this.domElem.attr('aria-hidden', true);
+            }
+        }
+    },
+
+    /**
+     * Sets content
+     * @param {String|jQuery} content
+     * @returns {popup} this
+     */
+    setContent : function(content) {
+        bemDom.update(this.domElem, content);
+        return this;
+    },
+
+    _calcZIndexGroupLevel : function() {
+        var res = this.params.zIndexGroupLevel,
+            parentPopup = this._getParentPopup();
+
+        parentPopup && (res += parentPopup._zIndexGroupLevel);
+
+        return res;
+    },
+
+    _setPreventHideByClick : function() {
+        var curPopup = this;
+        do {
+            curPopup._preventHideByClick = true;
+        } while(curPopup = curPopup._getParentPopup());
+    },
+
+    _bindToParentPopup : function() {
+        var parentPopup = this._getParentPopup();
+        parentPopup &&
+            this._events(parentPopup).on({ modName : 'visible', modVal : '' }, this._onParentPopupHide, this);
+
+        return this;
+    },
+
+    _unbindFromParentPopup : function() {
+        this._parentPopup && this._events(this._parentPopup)
+            .un({ modName : 'visible', modVal : '' }, this._onParentPopupHide, this);
+
+        this._parentPopup = undef;
+
+        return this;
+    },
+
+    _onParentPopupHide : function() {
+        this.delMod('visible');
+    },
+
+    _getParentPopup : function() {
+        return this._parentPopup;
+    },
+
+    _captureZIndex : function() {
+        var level = this._zIndexGroupLevel === null?
+                this._zIndexGroupLevel = this._calcZIndexGroupLevel() :
+                this._zIndexGroupLevel,
+            zIndexes = visiblePopupsZIndexes[level] || (visiblePopupsZIndexes[level] = [(level + 1) * ZINDEX_FACTOR]),
+            prevZIndex = this._zIndex;
+
+        this._zIndex = zIndexes[zIndexes.push(zIndexes[zIndexes.length - 1] + 1) - 1];
+        this._zIndex !== prevZIndex && this.domElem.css('z-index', this._zIndex);
+
+        return this;
+    },
+
+    _releaseZIndex : function() {
+        var zIndexes = visiblePopupsZIndexes[this._zIndexGroupLevel];
+        zIndexes.splice(zIndexes.indexOf(this._zIndex), 1);
+
+        return this;
+    },
+
+    _recaptureZIndex : function() {
+        this._releaseZIndex();
+        this._zIndexGroupLevel = null;
+
+        return this._captureZIndex();
+    },
+
+    _getDefaultParams : function() {
+        return {
+            zIndexGroupLevel : 0
+        };
+    }
+}, /** @lends popup */{
+    lazyInit : true
+}));
+
+});
+
+/* end: ../../../node_modules/bem-components/common.blocks/popup/popup.js */
+/* begin: ../../../node_modules/bem-core/common.blocks/functions/__throttle/functions__throttle.vanilla.js */
+/**
+ * @module functions__throttle
+ */
+
+modules.define('functions__throttle', function(provide) {
+
+var global = this.global;
+
+provide(
+    /**
+     * Throttle given function
+     * @exports
+     * @param {Function} fn function to throttle
+     * @param {Number} timeout throttle interval
+     * @param {Boolean} [invokeAsap=true] invoke before first interval
+     * @param {Object} [ctx] context of function invocation
+     * @returns {Function} throttled function
+     */
+    function(fn, timeout, invokeAsap, ctx) {
+        var typeofInvokeAsap = typeof invokeAsap;
+        if(typeofInvokeAsap === 'undefined') {
+            invokeAsap = true;
+        } else if(arguments.length === 3 && typeofInvokeAsap !== 'boolean') {
+            ctx = invokeAsap;
+            invokeAsap = true;
+        }
+
+        var timer, args, needInvoke,
+            wrapper = function() {
+                if(needInvoke) {
+                    fn.apply(ctx, args);
+                    needInvoke = false;
+                    timer = global.setTimeout(wrapper, timeout);
+                } else {
+                    timer = null;
+                }
+            };
+
+        return function() {
+            args = arguments;
+            ctx || (ctx = this);
+            needInvoke = true;
+
+            if(!timer) {
+                invokeAsap?
+                    wrapper() :
+                    timer = global.setTimeout(wrapper, timeout);
+            }
+        };
+    });
+
+});
+
+/* end: ../../../node_modules/bem-core/common.blocks/functions/__throttle/functions__throttle.vanilla.js */
+/* begin: ../../../node_modules/bem-components/common.blocks/popup/_autoclosable/popup_autoclosable.js */
+/**
+ * @module popup
+ */
+
+modules.define(
+    'popup',
+    ['jquery', 'i-bem-dom', 'ua', 'dom', 'keyboard__codes'],
+    function(provide, $, bemDom, ua, dom, keyCodes, Popup) {
+
+var KEYDOWN_EVENT = ua.opera && ua.version < 12.10? 'keypress' : 'keydown',
+    visiblePopupsStack = [];
+
+/**
+ * @exports
+ * @class popup
+ * @bem
+ */
+provide(Popup.declMod({ modName : 'autoclosable', modVal : true }, /** @lends popup.prototype */{
+    onSetMod : {
+        'visible' : {
+            'true' : function() {
+                visiblePopupsStack.unshift(this);
+                // NOTE: nextTick because of event bubbling to document
+                this
+                    ._nextTick(function() {
+                        this._domEvents(bemDom.doc).on('pointerclick', this._onDocPointerClick);
+                    })
+                    .__base.apply(this, arguments);
+            },
+
+            '' : function() {
+                visiblePopupsStack.splice(visiblePopupsStack.indexOf(this), 1);
+                this._domEvents(bemDom.doc).un('pointerclick', this._onDocPointerClick);
+                this.__base.apply(this, arguments);
+            }
+        }
+    },
+
+    _onDocPointerClick : function(e) {
+        if(this.hasMod('target', 'anchor') && dom.contains(this._anchor, $(e.target)))
+            return;
+
+        this._preventHideByClick?
+           this._preventHideByClick = null :
+           this.delMod('visible');
+    }
+}, /** @lends popup */{
+    lazyInit : true,
+    onInit : function() {
+        // TODO: checkme!
+        // this._domEvents(bemDom.doc).on(KEYDOWN_EVENT, onDocKeyPress);
+        bemDom.doc.on(KEYDOWN_EVENT, onDocKeyPress);
+    }
+}));
+
+function onDocKeyPress(e) {
+    e.keyCode === keyCodes.ESC &&
+        // omit ESC in inputs, selects and etc.
+        visiblePopupsStack.length &&
+        !dom.isEditable($(e.target)) &&
+            visiblePopupsStack[0].delMod('visible');
+}
+
+});
+
+/* end: ../../../node_modules/bem-components/common.blocks/popup/_autoclosable/popup_autoclosable.js */
+/* begin: ../../../node_modules/bem-components/common.blocks/popup/_target/popup_target.js */
+/**
+ * @module popup
+ */
+
+modules.define(
+    'popup',
+    ['i-bem-dom', 'objects'],
+    function(provide, bemDom, objects, Popup) {
+
+var VIEWPORT_ACCURACY_FACTOR = 0.99,
+    DEFAULT_DIRECTIONS = [
+        'bottom-left', 'bottom-center', 'bottom-right',
+        'top-left', 'top-center', 'top-right',
+        'right-top', 'right-center', 'right-bottom',
+        'left-top', 'left-center', 'left-bottom'
+    ],
+
+    win = bemDom.win,
+    undef;
+
+/**
+ * @exports
+ * @class popup
+ * @bem
+ *
+ * @param {Number} [mainOffset=0] offset along the main direction
+ * @param {Number} [secondaryOffset=0] offset along the secondary direction
+ * @param {Number} [viewportOffset=0] offset from the viewport (window)
+ * @param {Array[String]} [directions] allowed directions
+ */
+provide(Popup.declMod({ modName : 'target', modVal : '*' }, /** @lends popup.prototype */{
+    onSetMod : {
+        'js' : {
+            'inited' : function() {
+                this.__base.apply(this, arguments);
+
+                this._lastDrawingCss = {
+                    left : undef,
+                    top : undef,
+                    zIndex : undef,
+                    display : undef
+                };
+            }
+        },
+
+        'visible' : {
+            'true' : function() {
+                this.__base.apply(this, arguments);
+                this._domEvents(win).on('scroll resize', this._onWinScrollAndResize);
+                this.redraw();
+            },
+
+            '' : function() {
+                this.__base.apply(this, arguments);
+                this._domEvents(win).un('scroll resize', this._onWinScrollAndResize);
+            }
+        }
+    },
+
+    /**
+     * @override
+     */
+    setContent : function() {
+        return this.__base.apply(this, arguments).redraw();
+    },
+
+    /**
+     * Redraws popup
+     * @returns {popup} this
+     */
+    redraw : function() {
+        if(!this.hasMod('visible')) return this;
+
+        var bestDrawingParams = this._calcBestDrawingParams();
+
+        this.setMod('direction', bestDrawingParams.direction);
+
+        var lastDrawingCss = this._lastDrawingCss,
+            needUpdateCss = false;
+
+        objects.each(
+            this._calcDrawingCss(bestDrawingParams),
+            function(val, name) {
+                if(lastDrawingCss[name] !== val) {
+                    lastDrawingCss[name] = val;
+                    needUpdateCss = true;
+                }
+            });
+
+        needUpdateCss && this.domElem.css(lastDrawingCss);
+
+        return this;
+    },
+
+    _calcDrawingCss : function(drawingParams) {
+        return {
+            left : drawingParams.left,
+            top : drawingParams.top
+        };
+    },
+
+    /**
+     * Returns possible directions to draw with max available width and height.
+     * @returns {Array}
+     */
+    calcPossibleDrawingParams : function() {
+        var target = this._calcTargetDimensions(),
+            viewport = this._calcViewportDimensions(),
+            params = this.params,
+            mainOffset = params.mainOffset,
+            secondaryOffset = params.secondaryOffset,
+            viewportOffset = params.viewportOffset;
+
+        return this.params.directions.map(function(direction) {
+            var subRes = {
+                    direction : direction,
+                    width : 0,
+                    height : 0,
+                    left : 0,
+                    top : 0
+                };
+
+            if(this._checkMainDirection(direction, 'bottom')) {
+                subRes.top = target.top + target.height + mainOffset;
+                subRes.height = viewport.bottom - subRes.top - viewportOffset;
+            } else if(this._checkMainDirection(direction, 'top')) {
+                subRes.height = target.top - viewport.top - mainOffset - viewportOffset;
+                subRes.top = target.top - subRes.height - mainOffset;
+            } else {
+                if(this._checkSecondaryDirection(direction, 'center')) {
+                    subRes.height = viewport.bottom - viewport.top - 2 * viewportOffset;
+                    subRes.top = target.top + target.height / 2 - subRes.height / 2;
+                } else if(this._checkSecondaryDirection(direction, 'bottom')) {
+                    subRes.height = target.top + target.height - viewport.top - secondaryOffset - viewportOffset;
+                    subRes.top = target.top + target.height - subRes.height - secondaryOffset;
+                } else if(this._checkSecondaryDirection(direction, 'top')) {
+                    subRes.top = target.top + secondaryOffset;
+                    subRes.height = viewport.bottom - subRes.top - viewportOffset;
+                }
+
+                if(this._checkMainDirection(direction, 'left')) {
+                    subRes.width = target.left - viewport.left - mainOffset - viewportOffset;
+                    subRes.left = target.left - subRes.width - mainOffset;
+                } else {
+                    subRes.left = target.left + target.width + mainOffset;
+                    subRes.width = viewport.right - subRes.left - viewportOffset;
+                }
+            }
+
+            if(this._checkSecondaryDirection(direction, 'right')) {
+                subRes.width = target.left + target.width - viewport.left - secondaryOffset - viewportOffset;
+                subRes.left = target.left + target.width - subRes.width - secondaryOffset;
+            } else if(this._checkSecondaryDirection(direction, 'left')) {
+                subRes.left = target.left + secondaryOffset;
+                subRes.width = viewport.right - subRes.left - viewportOffset;
+            } else if(this._checkSecondaryDirection(direction, 'center')) {
+                if(this._checkMainDirection(direction, 'top', 'bottom')) {
+                    subRes.width = viewport.right - viewport.left - 2 * viewportOffset;
+                    subRes.left = target.left + target.width / 2 - subRes.width / 2;
+                }
+            }
+
+            return subRes;
+        }, this);
+    },
+
+    _calcBestDrawingParams : function() {
+        var popup = this._calcPopupDimensions(),
+            target = this._calcTargetDimensions(),
+            viewport = this._calcViewportDimensions(),
+            directions = this.params.directions,
+            i = 0,
+            direction,
+            pos,
+            viewportFactor,
+            bestDirection,
+            bestPos,
+            bestViewportFactor;
+
+        while(direction = directions[i++]) {
+            pos = this._calcPos(direction, target, popup);
+            viewportFactor = this._calcViewportFactor(pos, viewport, popup);
+            if(i === 1 ||
+                    viewportFactor > bestViewportFactor ||
+                    (!bestViewportFactor && this.hasMod('direction', direction))) {
+                bestDirection = direction;
+                bestViewportFactor = viewportFactor;
+                bestPos = pos;
+            }
+            if(bestViewportFactor > VIEWPORT_ACCURACY_FACTOR) break;
+        }
+
+        return {
+            direction : bestDirection,
+            left : bestPos.left,
+            top : bestPos.top
+        };
+    },
+
+    _calcPopupDimensions : function() {
+        var popupWidth = this.domElem.outerWidth(),
+            popupHeight = this.domElem.outerHeight();
+
+        return {
+            width : popupWidth,
+            height : popupHeight,
+            area : popupWidth * popupHeight
+        };
+    },
+
+    /**
+     * @abstract
+     * @protected
+     * @returns {Object}
+     */
+    _calcTargetDimensions : function() {},
+
+    _calcViewportDimensions : function() {
+        var winTop = win.scrollTop(),
+            winLeft = win.scrollLeft(),
+            winWidth = win.width(),
+            winHeight = win.height();
+
+        return {
+            top : winTop,
+            left : winLeft,
+            bottom : winTop + winHeight,
+            right : winLeft + winWidth
+        };
+    },
+
+    _calcPos : function(direction, target, popup) {
+        var res = {},
+            mainOffset = this.params.mainOffset,
+            secondaryOffset = this.params.secondaryOffset;
+
+        if(this._checkMainDirection(direction, 'bottom')) {
+            res.top = target.top + target.height + mainOffset;
+        } else if(this._checkMainDirection(direction, 'top')) {
+            res.top = target.top - popup.height - mainOffset;
+        } else if(this._checkMainDirection(direction, 'left')) {
+            res.left = target.left - popup.width - mainOffset;
+        } else if(this._checkMainDirection(direction, 'right')) {
+            res.left = target.left + target.width + mainOffset;
+        }
+
+        if(this._checkSecondaryDirection(direction, 'right')) {
+            res.left = target.left + target.width - popup.width - secondaryOffset;
+        } else if(this._checkSecondaryDirection(direction, 'left')) {
+            res.left = target.left + secondaryOffset;
+        } else if(this._checkSecondaryDirection(direction, 'bottom')) {
+            res.top = target.top + target.height - popup.height - secondaryOffset;
+        } else if(this._checkSecondaryDirection(direction, 'top')) {
+            res.top = target.top + secondaryOffset;
+        } else if(this._checkSecondaryDirection(direction, 'center')) {
+            if(this._checkMainDirection(direction, 'top', 'bottom')) {
+                res.left = target.left + target.width / 2 - popup.width / 2;
+            } else if(this._checkMainDirection(direction, 'left', 'right')) {
+                res.top = target.top + target.height / 2 - popup.height / 2;
+            }
+        }
+
+        return res;
+    },
+
+    _calcViewportFactor : function(pos, viewport, popup) {
+        var viewportOffset = this.params.viewportOffset,
+            intersectionLeft = Math.max(pos.left, viewport.left + viewportOffset),
+            intersectionRight = Math.min(pos.left + popup.width, viewport.right - viewportOffset),
+            intersectionTop = Math.max(pos.top, viewport.top + viewportOffset),
+            intersectionBottom = Math.min(pos.top + popup.height, viewport.bottom - viewportOffset);
+
+        return intersectionLeft < intersectionRight && intersectionTop < intersectionBottom? // has intersection
+            (intersectionRight - intersectionLeft) *
+                (intersectionBottom - intersectionTop) /
+                popup.area :
+            0;
+    },
+
+    _checkMainDirection : function(direction, mainDirection1, mainDirection2) {
+        return !direction.indexOf(mainDirection1) || (mainDirection2 && !direction.indexOf(mainDirection2));
+    },
+
+    _checkSecondaryDirection : function(direction, secondaryDirection) {
+        return ~direction.indexOf('-' + secondaryDirection);
+    },
+
+    _onWinScrollAndResize : function() {
+        this.redraw();
+    },
+
+    _getDefaultParams : function() {
+        return objects.extend(
+            this.__base.apply(this, arguments),
+            {
+                mainOffset : 0,
+                secondaryOffset : 0,
+                viewportOffset : 0,
+                directions : DEFAULT_DIRECTIONS
+            });
+    }
+}));
+
+});
+
+/* end: ../../../node_modules/bem-components/common.blocks/popup/_target/popup_target.js */
+/* begin: ../../../node_modules/bem-components/common.blocks/z-index-group/z-index-group.js */
+modules.define('z-index-group', ['i-bem-dom'], function(provide, bemDom) {
+
+provide(bemDom.declBlock(this.name));
+
+});
+
+/* end: ../../../node_modules/bem-components/common.blocks/z-index-group/z-index-group.js */
+/* begin: ../../../node_modules/bem-core/common.blocks/strings/__escape/strings__escape.vanilla.js */
+/**
+ * @module strings__escape
+ * @description A set of string escaping functions
+ */
+
+modules.define('strings__escape', function(provide) {
+
+var symbols = {
+        '"' : '&quot;',
+        '\'' : '&apos;',
+        '&' : '&amp;',
+        '<' : '&lt;',
+        '>' : '&gt;'
+    },
+    mapSymbol = function(s) {
+        return symbols[s] || s;
+    },
+    buildEscape = function(regexp) {
+        regexp = new RegExp(regexp, 'g');
+        return function(str) {
+            return ('' + str).replace(regexp, mapSymbol);
+        };
+    };
+
+provide(/** @exports */{
+    /**
+     * Escape string to use in XML
+     * @type Function
+     * @param {String} str
+     * @returns {String}
+     */
+    xml : buildEscape('[&<>]'),
+
+    /**
+     * Escape string to use in HTML
+     * @type Function
+     * @param {String} str
+     * @returns {String}
+     */
+    html : buildEscape('[&<>]'),
+
+    /**
+     * Escape string to use in attributes
+     * @type Function
+     * @param {String} str
+     * @returns {String}
+     */
+    attr : buildEscape('["\'&<>]')
+});
+
+});
+
+/* end: ../../../node_modules/bem-core/common.blocks/strings/__escape/strings__escape.vanilla.js */
+/* begin: ../../../node_modules/bem-components/common.blocks/menu/_mode/menu_mode.js */
+/**
+ * @module menu
+ */
+
+modules.define('menu', ['i-bem-dom', 'keyboard__codes'], function(provide, bemDom, keyCodes, Menu) {
+
+/**
+ * @exports
+ * @class menu
+ * @bem
+ */
+provide(Menu.declMod({ modName : 'mode', modVal : '*' }, /** @lends menu.prototype */{
+    onSetMod : {
+        'js' : {
+            'inited' : function() {
+                this.__base.apply(this, arguments);
+                this._val = null;
+                this._isValValid = false;
+            }
+        }
+    },
+
+    _onKeyDown : function(e) {
+        if(e.keyCode === keyCodes.ENTER || e.keyCode === keyCodes.SPACE) {
+            this._domEvents(bemDom.doc)
+                .un('keydown', this._onKeyDown)
+                .on('keyup', this._onKeyUp);
+
+            e.keyCode === keyCodes.SPACE && e.preventDefault();
+            this._onItemClick(this._hoveredItem, { source : 'keyboard' });
+        }
+        this.__base.apply(this, arguments);
+    },
+
+    _onKeyUp : function() {
+        this._domEvents(bemDom.doc).un('keyup', this._onKeyUp);
+        // it could be unfocused while is key being pressed
+        this.hasMod('focused') && this._domEvents(bemDom.doc).on('keydown', this._onKeyDown);
+    },
+
+    /**
+     * Returns menu value
+     * @returns {*}
+     */
+    getVal : function() {
+        if(!this._isValValid) {
+            this._val = this._getVal();
+            this._isValValid = true;
+        }
+        return this._val;
+    },
+
+    /**
+     * @abstract
+     * @protected
+     * @returns {*}
+     */
+    _getVal : function() {
+        throw Error('_getVal is not implemented');
+    },
+
+    /**
+     * Sets menu value
+     * @param {*} val
+     * @returns {menu} this
+     */
+    setVal : function(val) {
+        if(this._setVal(val)) {
+            this._val = val;
+            this._isValValid = true;
+            this._emit('change');
+        }
+        return this;
+    },
+
+    /**
+     * @abstract
+     * @protected
+     * @param {*} val
+     * @returns {Boolean} returns true if value was changed
+     */
+    _setVal : function() {
+        throw Error('_setVal is not implemented');
+    },
+
+    _updateItemsCheckedMod : function(modVals) {
+        var items = this.getItems();
+        modVals.forEach(function(modVal, i) {
+            items.get(i).setMod('checked', modVal);
+        });
+    },
+
+    /**
+     * Sets content
+     * @override
+     */
+    setContent : function() {
+        var res = this.__base.apply(this, arguments);
+        this._isValValid = false;
+        this._emit('change'); // NOTE: potentially unwanted event could be emitted
+        return res;
+    }
+}));
+
+});
+
+/* end: ../../../node_modules/bem-components/common.blocks/menu/_mode/menu_mode.js */
 /* begin: ../../../node_modules/bem-core/common.blocks/loader/_type/loader_type_js.js */
 /**
  * @module loader_type_js
@@ -5525,3 +7138,402 @@ provide($);
 });
 
 /* end: ../../../node_modules/bem-core/common.blocks/jquery/__event/_type/jquery__event_type_pointerpressrelease.js */
+/* begin: ../../../node_modules/bem-components/common.blocks/select/_mode/select_mode_radio-check.js */
+/**
+ * @module select
+ */
+
+modules.define('select', ['i-bem-dom', 'jquery'], function(provide, bemDom, $, Select) {
+
+/**
+ * @exports
+ * @class select
+ * @bem
+ */
+provide(Select.declMod({ modName : 'mode', modVal : 'radio-check' }, /** @lends select.prototype */{
+    _updateControl : function() {
+        var val = this.getVal(),
+            control = this._elem('control'),
+            controlDomElem = control && control.domElem;
+
+        if(!controlDomElem || !controlDomElem.length) {
+            controlDomElem = $(Select._createControlHTML(this.getName(), val));
+        }
+
+        if(typeof val === 'undefined') {
+            // NOTE: because there is a possibility of whole select disabling,
+            // "destruct" is used instead of "disable"
+            bemDom.destruct(controlDomElem);
+        } else {
+            if(!controlDomElem.parent().length) {
+                bemDom.prepend(this.domElem, controlDomElem);
+                this._dropElemCache('control');
+            }
+            controlDomElem.val(val);
+        }
+    },
+
+    _updateButton : function() {
+        var checkedItem = this._getCheckedItems().get(0);
+
+        this._button
+            .toggleMod('checked', true, '', !!checkedItem)
+            .setText(checkedItem? checkedItem.getText() : this.params.text);
+    },
+
+    _onMenuItemClick : function(_, data) {
+        data.source === 'pointer' && this.delMod('opened');
+    }
+}));
+
+});
+
+/* end: ../../../node_modules/bem-components/common.blocks/select/_mode/select_mode_radio-check.js */
+/* begin: ../../../node_modules/bem-components/common.blocks/popup/_target/popup_target_anchor.js */
+/**
+ * @module popup
+ */
+
+modules.define(
+    'popup',
+    ['i-bem-dom', 'jquery', 'objects', 'functions__throttle', 'z-index-group'],
+    function(provide, bemDom, $, objects, throttle, zIndexGroup, Popup) {
+
+var body = $(bemDom.doc[0].body),
+    UPDATE_TARGET_VISIBILITY_THROTTLING_INTERVAL = 100,
+    undef;
+
+/**
+ * @exports
+ * @class popup
+ * @bem
+ */
+provide(Popup.declMod({ modName : 'target', modVal : 'anchor' }, /** @lends popup.prototype */{
+    beforeSetMod : {
+        'visible' : {
+            'true' : function() {
+                if(!this._anchor)
+                    throw Error('Can\'t show popup without anchor');
+            }
+        }
+    },
+
+    onSetMod : {
+        'js' : {
+            'inited' : function() {
+                this.__base.apply(this, arguments);
+
+                this._destructorClass = bemDom.declBlock('_' + this.__self.getName() + '-destructor');
+
+                this._anchor = null;
+                this._anchorParents = null;
+                this._destructor = null;
+                this._isAnchorVisible = undef;
+                this._updateIsAnchorVisible = throttle(
+                    this._updateIsAnchorVisible,
+                    UPDATE_TARGET_VISIBILITY_THROTTLING_INTERVAL,
+                    false,
+                    this);
+            },
+
+            '' : function() {
+                this.__base.apply(this, arguments);
+                this._unbindFromDestructor(); // don't destruct anchor as it might be the same anchor for several popups
+            }
+        },
+
+        'visible' : {
+            'true' : function() {
+                this._anchorParents = this._anchor.parents();
+                this._bindToAnchorParents();
+
+                this.__base.apply(this, arguments);
+            },
+
+            '' : function() {
+                this.__base.apply(this, arguments);
+
+                this._unbindFromAnchorParents();
+                this._anchorParents = null;
+                this._isAnchorVisible = undef;
+            }
+        }
+    },
+
+    /**
+     * Sets target
+     * @param {jQuery|bemDom} anchor DOM elem or anchor bemDom block
+     * @returns {popup} this
+     */
+    setAnchor : function(anchor) {
+        this
+            ._unbindFromAnchorParents()
+            ._unbindFromParentPopup()
+            ._unbindFromDestructor();
+
+        this._anchor = anchor.domElem || anchor;
+
+        this._destructor = this._anchor.bem(this._destructorClass);
+        this._isAnchorVisible = undef;
+
+        this._bindToDestructor();
+
+        if(this.hasMod('visible')) {
+            this._anchorParents = this._anchor.parents();
+            this
+                ._recaptureZIndex()
+                ._bindToAnchorParents()
+                ._bindToParentPopup()
+                .redraw();
+        } else {
+            this._anchorParents = null;
+            this._zIndexGroupLevel = null;
+        }
+
+        return this;
+    },
+
+    /**
+     * @override
+     */
+    _calcTargetDimensions : function() {
+        var anchor = this._anchor,
+            anchorOffset = anchor.offset(),
+            bodyOffset = body.css('position') === 'static'?
+                { left : 0, top : 0 } :
+                body.offset();
+
+        return {
+            left : anchorOffset.left - bodyOffset.left,
+            top : anchorOffset.top - bodyOffset.top,
+            width : anchor.outerWidth(),
+            height : anchor.outerHeight()
+        };
+    },
+
+    /**
+     * @override
+     */
+    _calcDrawingCss : function(drawingParams) {
+        typeof this._isAnchorVisible === 'undefined' &&
+            (this._isAnchorVisible = this._calcIsAnchorVisible());
+
+        return objects.extend(
+            this.__base(drawingParams),
+            { display : this._isAnchorVisible? '' : 'none' });
+    },
+
+    /**
+     * Calculates target visibility state
+     * @private
+     * @returns {Boolean} Whether state is visible
+     */
+    _calcIsAnchorVisible : function() {
+        var anchor = this._anchor,
+            anchorOffset = anchor.offset(),
+            anchorLeft = anchorOffset.left,
+            anchorTop = anchorOffset.top,
+            anchorRight = anchorLeft + anchor.outerWidth(),
+            anchorBottom = anchorTop + anchor.outerHeight(),
+            direction = this.getMod('direction'),
+            vertBorder = this._checkMainDirection(direction, 'top') ||
+                    this._checkSecondaryDirection(direction, 'top')?
+                anchorTop :
+                anchorBottom,
+            horizBorder = this._checkMainDirection(direction, 'left') ||
+                    this._checkSecondaryDirection(direction, 'left')?
+                anchorLeft :
+                anchorRight,
+            res = true;
+
+        this._anchorParents.each(function() {
+            if(this.tagName === 'BODY') return false;
+
+            var parent = $(this),
+                overflowY = parent.css('overflow-y'),
+                checkOverflowY = overflowY === 'scroll' || overflowY === 'hidden' || overflowY === 'auto',
+                overflowX = parent.css('overflow-x'),
+                checkOverflowX = overflowX === 'scroll' || overflowX === 'hidden' || overflowX === 'auto';
+
+            if(checkOverflowY || checkOverflowX) {
+                var parentOffset = parent.offset();
+
+                if(checkOverflowY) {
+                    var parentTopOffset = parentOffset.top;
+                    if(vertBorder < parentTopOffset || parentTopOffset + parent.outerHeight() < vertBorder) {
+                        return res = false;
+                    }
+                }
+
+                if(checkOverflowX) {
+                    var parentLeftOffset = parentOffset.left;
+                    return res = !(
+                        horizBorder < parentLeftOffset ||
+                        parentLeftOffset + parent.outerWidth() < horizBorder);
+                }
+            }
+        });
+
+        return res;
+    },
+
+    _calcZIndexGroupLevel : function() {
+        var res = this.__base.apply(this, arguments);
+
+        return this._destructor.findParentBlocks(zIndexGroup).reduce(
+            function(res, zIndexGroupInstance) {
+                return res + Number(zIndexGroupInstance.getMod('level'));
+            },
+            res);
+    },
+
+    _bindToAnchorParents : function() {
+        this._domEvents(this._anchorParents).on('scroll', this._onAnchorParentsScroll);
+        return this;
+    },
+
+    _unbindFromAnchorParents : function() {
+        this._anchorParents && this._domEvents(this._anchorParents).un(
+            'scroll',
+            this._onAnchorParentsScroll);
+        return this;
+    },
+
+    _onAnchorParentsScroll : function() {
+        this
+            .redraw()
+            ._updateIsAnchorVisible();
+    },
+
+    /**
+     * @override
+     */
+    _onWinScrollAndResize : function() {
+        this.__base.apply(this, arguments);
+        this._updateIsAnchorVisible();
+    },
+
+    _updateIsAnchorVisible : function() {
+        if(!this.hasMod('js', 'inited') || !this.hasMod('visible'))
+            return;
+
+        var isAnchorVisible = this._calcIsAnchorVisible();
+        if(isAnchorVisible !== this._isAnchorVisible) {
+            this._isAnchorVisible = isAnchorVisible;
+            this.redraw();
+        }
+    },
+
+    _bindToDestructor : function() {
+        this._events(this._destructor).on({ modName : 'js', modVal : '' }, this._onPopupAnchorDestruct, this);
+        return this;
+    },
+
+    _unbindFromDestructor : function() {
+        this._destructor &&
+            this._events(this._destructor).un({ modName : 'js', modVal : '' }, this._onPopupAnchorDestruct, this);
+        return this;
+    },
+
+    _onPopupAnchorDestruct : function() {
+        bemDom.destruct(this.domElem);
+    },
+
+    _getParentPopup : function() {
+        if(this._parentPopup) return this._parentPopup;
+
+        var parentPopupDomElem = this._anchor.closest(Popup._buildSelector());
+
+        return this._parentPopup = !!parentPopupDomElem.length && parentPopupDomElem.bem(Popup);
+    }
+}));
+
+});
+
+/* end: ../../../node_modules/bem-components/common.blocks/popup/_target/popup_target_anchor.js */
+/* begin: ../../../node_modules/bem-components/common.blocks/menu/_mode/menu_mode_radio-check.js */
+/**
+ * @module menu
+ */
+
+modules.define('menu', function(provide, Menu) {
+
+/**
+ * @exports
+ * @class menu
+ * @bem
+ */
+provide(Menu.declMod({ modName : 'mode', modVal : 'radio-check' }, /** @lends menu.prototype */{
+    /**
+     * @override
+     */
+    _getVal : function() {
+        var items = this.getItems(),
+            i = 0, item;
+        while(item = items.get(i++))
+            if(item.hasMod('checked'))
+                return item.getVal();
+    },
+
+    /**
+     * @override
+     */
+    _setVal : function(val) {
+        var isValUndefined = typeof val === 'undefined',
+            wasChanged = false,
+            hasVal = false,
+            itemsCheckedVals = this.getItems().map(function(item) {
+                if(isValUndefined) {
+                    item.hasMod('checked') && (wasChanged = true);
+                    return false;
+                }
+
+                if(!item.isValEq(val)) return false;
+
+                item.hasMod('checked') || (wasChanged = true);
+                return hasVal = true;
+            });
+
+        if(!isValUndefined && !hasVal) return false;
+
+        this._updateItemsCheckedMod(itemsCheckedVals);
+
+        return wasChanged;
+    },
+
+    /**
+     * @override
+     */
+    _onItemClick : function(clickedItem) {
+        this.__base.apply(this, arguments);
+
+        this.getItems().forEach(function(item) {
+            item === clickedItem?
+                item.toggleMod('checked') :
+                item.delMod('checked');
+        });
+        this._isValValid = false;
+        this._emit('change');
+    }
+}));
+
+});
+
+/* end: ../../../node_modules/bem-components/common.blocks/menu/_mode/menu_mode_radio-check.js */
+/* begin: ../../../node_modules/bem-components/design/common.blocks/popup/_theme/popup_theme_islands.js */
+modules.define('popup', ['objects'], function(provide, objects, Popup) {
+
+provide(Popup.declMod({ modName : 'theme', modVal : 'islands' }, {
+    _getDefaultParams : function() {
+        return objects.extend(
+            this.__base(),
+            {
+                mainOffset : 5,
+                viewportOffset : 10
+            });
+    }
+}));
+
+});
+
+/* end: ../../../node_modules/bem-components/design/common.blocks/popup/_theme/popup_theme_islands.js */

@@ -36,4 +36,4 @@ module.exports = {"i18n":{"i18n":function () {
             };
 
             return i18n;
-        }}};
+        }},"lang-switcher":{"ru":"Русский","en":"Английский"}};

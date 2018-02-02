@@ -38,7 +38,7 @@
             };
 
             return i18n;
-        })()).decl({}),
+        })()).decl({"lang-switcher":{"ru":"Русский","en":"Английский"}}),
         defineAsGlobal = true;
 
     // CommonJS

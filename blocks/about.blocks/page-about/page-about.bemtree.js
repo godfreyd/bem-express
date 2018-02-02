@@ -1,3 +1,3 @@
 block('page-about').content()(function() {
-    return 'About page content!';
+    return this.i18n(this.block, 'about');
 });
